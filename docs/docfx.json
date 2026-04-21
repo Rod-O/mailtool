@@ -1,0 +1,28 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": ["mailtool.csproj"],
+          "src": ".."
+        }
+      ],
+      "dest": "api",
+      "includePrivateMembers": false
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": ["api/**.yml", "api/index.md"] },
+      { "files": ["articles/**.md", "toc.yml", "*.md"] }
+    ],
+    "resource": [],
+    "output": "_site",
+    "template": ["default", "modern"],
+    "globalMetadata": {
+      "_appName": "mailtool",
+      "_appTitle": "mailtool — Local M365 Mail Cache",
+      "_enableSearch": true
+    }
+  }
+}

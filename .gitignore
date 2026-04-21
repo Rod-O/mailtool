@@ -1,0 +1,31 @@
+# .NET build artifacts
+bin/
+obj/
+publish/
+
+# Compiled binary (rebuild locally after clone)
+mailtool
+mailtool.exe
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+
+# DocFX generated output
+docs/_site/
+docs/api/
+
+# Local mail cache (never commit)
+mail-cache/
+
+# Auth records (contain user credentials)
+auth-record.json
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vs/
+*.user
