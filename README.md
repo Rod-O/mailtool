@@ -8,11 +8,11 @@ Designed for teams where an AI agent needs to read and send email without burnin
 
 ## Using with Claude
 
-If you downloaded the binary and want Claude to help you use mailtool, tell Claude:
+If you want Claude to help you use mailtool, tell Claude:
 
-> Read https://github.com/Rod-O/mailtool/blob/master/CLAUDE.md before helping me with mailtool.
+> Read https://github.com/Rod-O/mailtool/blob/master/CLAUDE.md and save it to memory so you remember how to use mailtool in future conversations.
 
-Claude will load the full context — commands, rules, and examples — and be ready to work.
+Claude will load the full context — commands, rules, and install instructions — and save it to its persistent memory so you never have to explain it again.
 
 ## Prerequisites
 
