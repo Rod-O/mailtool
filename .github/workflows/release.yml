@@ -35,7 +35,7 @@ jobs:
 
       - name: Publish
         run: >
-          dotnet publish mailtool.csproj
+          dotnet publish MailTool.csproj
           -c Release
           -r ${{ matrix.rid }}
           -p:PublishSingleFile=true
