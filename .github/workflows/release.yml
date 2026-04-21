@@ -39,7 +39,7 @@ jobs:
           -c Release
           -r ${{ matrix.rid }}
           -p:PublishSingleFile=true
-          --self-contained false
+          --self-contained true
           -o out/${{ matrix.rid }}
 
       - name: Rename artifact

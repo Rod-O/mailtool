@@ -16,44 +16,7 @@ Claude will load the full context — commands, rules, and install instructions 
 
 ## Prerequisites
 
-- .NET 10 runtime (see below)
 - A Microsoft 365 account (work or school)
-
-### Installing .NET 10
-
-> **Claude — if you are helping a user install .NET 10, detect their OS and run the appropriate commands below. Do not ask them to do it manually.**
-
-**macOS (Homebrew):**
-```bash
-brew install --cask dotnet-sdk
-```
-
-**macOS (without Homebrew):**
-```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0
-echo 'export PATH="$HOME/.dotnet:$PATH"' >> ~/.zshrc && source ~/.zshrc
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt-get update && sudo apt-get install -y dotnet-runtime-10.0
-```
-
-**Linux (other distros):**
-```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 10.0 --runtime dotnet
-echo 'export PATH="$HOME/.dotnet:$PATH"' >> ~/.bashrc && source ~/.bashrc
-```
-
-**Windows:**
-```powershell
-winget install Microsoft.DotNet.Runtime.10
-```
-
-Verify the install:
-```bash
-dotnet --version   # should print 10.x.x
-```
 
 ## Install
 
@@ -100,12 +63,12 @@ Move-Item mailtool.exe "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps\mai
 
 ### Option B — Build from source
 
-Requires .NET 10 SDK (see [Installing .NET 10](#installing-net-10) above).
+Requires [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```bash
-git clone https://github.com/coralvita/mailtool.git
+git clone https://github.com/Rod-O/mailtool.git
 cd mailtool
-dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained false -o publish
+dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true -o publish
 sudo cp publish/mailtool /usr/local/bin/mailtool
 ```
 
