@@ -6,6 +6,14 @@ No MCP server, no plugin, no middleware. Just the Microsoft Graph API called dir
 
 Designed for teams where an AI agent needs to read and send email without burning context on repeated API calls. Each user authenticates independently with their own M365 account via device-code flow. Nothing is shared, nothing is proxied.
 
+## Using with Claude
+
+If you downloaded the binary and want Claude to help you use mailtool, tell Claude:
+
+> Read https://github.com/Rod-O/mailtool/blob/master/CLAUDE.md before helping me with mailtool.
+
+Claude will load the full context — commands, rules, and examples — and be ready to work.
+
 ## Prerequisites
 
 - .NET 10 runtime (see below)
