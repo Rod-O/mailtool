@@ -23,12 +23,14 @@ Claude will load the full context — commands, rules, and install instructions 
 > **Claude — if you are helping a user install mailtool, do the following automatically:**
 > 1. Detect their OS and CPU architecture (`uname -sm` on Mac/Linux, `$env:PROCESSOR_ARCHITECTURE` on Windows).
 > 2. Pick the correct binary from the table below.
-> 3. Download it with `curl` or `Invoke-WebRequest`.
-> 4. Make it executable and move it to PATH.
+> 3. Fetch the latest release page at https://github.com/Rod-O/mailtool/releases/latest to get the correct download URL for their platform.
+> 4. Download it with `curl` or `Invoke-WebRequest`, make it executable, and move it to PATH.
 > 5. Run `mailtool login` to verify.
 > Do all of this for the user — do not ask them to run the commands themselves.
 
 ### Option A — Download binary (recommended)
+
+Go to **[https://github.com/Rod-O/mailtool/releases](https://github.com/Rod-O/mailtool/releases)**, download the file for your platform, and install it:
 
 | File | Platform |
 |------|----------|
@@ -37,29 +39,13 @@ Claude will load the full context — commands, rules, and install instructions 
 | `mailtool-linux-x64` | Linux |
 | `mailtool-win-x64.exe` | Windows |
 
-**macOS (Apple Silicon):**
+**macOS / Linux** — after downloading:
 ```bash
-curl -L https://github.com/coralvita/mailtool/releases/latest/download/mailtool-osx-arm64 -o mailtool
-chmod +x mailtool && sudo mv mailtool /usr/local/bin/mailtool
+chmod +x mailtool-osx-arm64
+sudo mv mailtool-osx-arm64 /usr/local/bin/mailtool
 ```
 
-**macOS (Intel):**
-```bash
-curl -L https://github.com/coralvita/mailtool/releases/latest/download/mailtool-osx-x64 -o mailtool
-chmod +x mailtool && sudo mv mailtool /usr/local/bin/mailtool
-```
-
-**Linux:**
-```bash
-curl -L https://github.com/coralvita/mailtool/releases/latest/download/mailtool-linux-x64 -o mailtool
-chmod +x mailtool && sudo mv mailtool /usr/local/bin/mailtool
-```
-
-**Windows (PowerShell):**
-```powershell
-Invoke-WebRequest -Uri https://github.com/coralvita/mailtool/releases/latest/download/mailtool-win-x64.exe -OutFile mailtool.exe
-Move-Item mailtool.exe "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps\mailtool.exe"
-```
+**Windows** — move the `.exe` to a folder in your PATH.
 
 ### Option B — Build from source
 

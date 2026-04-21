@@ -45,36 +45,33 @@ Default: `~/.local/share/mailtool/cache`. Override with `MAILTOOL_CACHE` env var
 
 ## Install (if not already installed)
 
-Claude: detect the user's OS and run the correct commands — do not ask them to do it manually.
+Claude: detect the user's OS/arch, fetch https://github.com/Rod-O/mailtool/releases/latest to find the correct download URL, then download, make executable, and move to PATH — do not ask the user to do it manually.
 
-**macOS Apple Silicon:**
-```bash
-curl -L https://github.com/Rod-O/mailtool/releases/latest/download/mailtool-osx-arm64 -o mailtool
-chmod +x mailtool && sudo mv mailtool /usr/local/bin/mailtool
-```
+Releases page: **https://github.com/Rod-O/mailtool/releases**
 
-**macOS Intel:**
-```bash
-curl -L https://github.com/Rod-O/mailtool/releases/latest/download/mailtool-osx-x64 -o mailtool
-chmod +x mailtool && sudo mv mailtool /usr/local/bin/mailtool
-```
+| File | Platform |
+|------|----------|
+| `mailtool-osx-arm64` | Mac — Apple Silicon |
+| `mailtool-osx-x64` | Mac — Intel |
+| `mailtool-linux-x64` | Linux |
+| `mailtool-win-x64.exe` | Windows |
 
-**Linux:**
+**macOS / Linux** (after determining the correct filename from the releases page):
 ```bash
-curl -L https://github.com/Rod-O/mailtool/releases/latest/download/mailtool-linux-x64 -o mailtool
+curl -L <url-from-releases-page> -o mailtool
 chmod +x mailtool && sudo mv mailtool /usr/local/bin/mailtool
 ```
 
 **Windows:**
 ```powershell
-Invoke-WebRequest -Uri https://github.com/Rod-O/mailtool/releases/latest/download/mailtool-win-x64.exe -OutFile mailtool.exe
+Invoke-WebRequest -Uri <url-from-releases-page> -OutFile mailtool.exe
 Move-Item mailtool.exe "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps\mailtool.exe"
 ```
 
 ## Build from source
 
 ```bash
-dotnet publish mailtool.csproj -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained false -o publish
+dotnet publish MailTool.csproj -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true -o publish
 ```
 
 ## Tests
