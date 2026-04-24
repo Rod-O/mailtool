@@ -1,55 +1,92 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace MailTool;
 
+/// <summary>Search filter + output options shared across commands that select messages.</summary>
 public class SearchOptions
 {
     public string? Query { get; set; }
     public string? From { get; set; }
     public string? To { get; set; }
     public string? Subject { get; set; }
+    public string? SubjectRegex { get; set; }
     public DateTimeOffset? Since { get; set; }
     public DateTimeOffset? Until { get; set; }
     public int Limit { get; set; } = 50;
     public bool BodyMatch { get; set; } = false;
+    /// <summary>User-supplied folder spec (alias, path, or raw id). Resolution to <see cref="InFolderId"/> is done by the caller before matching.</summary>
+    public string? InFolder { get; set; }
+    /// <summary>Resolved Graph folder id. Set by caller (Program.cs) after <see cref="Folders.ResolveAsync"/>.</summary>
+    public string? InFolderId { get; set; }
+    /// <summary>Emit JSON instead of the human-readable listing.</summary>
+    public bool Json { get; set; } = false;
+
+    internal Regex? SubjectRegexCompiled { get; set; }
 }
 
+/// <summary>Searches the local message cache using <see cref="SearchOptions"/> predicates.</summary>
 public static class Search
 {
+    /// <summary>Runs the search and prints results in either human or JSON format.</summary>
     public static void Run(SearchOptions opts)
     {
+        if (!string.IsNullOrEmpty(opts.SubjectRegex))
+            opts.SubjectRegexCompiled = new Regex(opts.SubjectRegex, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         var index = Storage.LoadIndex();
-        var results = new List<(DateTimeOffset received, JsonObject msg, string rel)>();
+        var results = new List<(DateTimeOffset received, JsonObject msg)>();
 
         foreach (var (id, rel) in index.ById)
         {
             var msg = Storage.LoadMessage(rel);
             if (msg is null) continue;
-
             if (!Matches(msg, opts)) continue;
 
             var received = ParseDate(msg["receivedDateTime"]?.GetValue<string>());
-            results.Add((received, msg, rel));
+            results.Add((received, msg));
         }
 
-        foreach (var (received, msg, rel) in results
+        var ordered = results
             .OrderByDescending(r => r.received)
-            .Take(opts.Limit))
+            .Take(opts.Limit)
+            .ToList();
+
+        if (opts.Json)
         {
-            var from = msg["from"]?["address"]?.GetValue<string>() ?? "(no-from)";
-            var subject = msg["subject"]?.GetValue<string>() ?? "(no-subject)";
-            var id = msg["id"]?.GetValue<string>() ?? "";
-            var flagRead = msg["isRead"]?.GetValue<bool>() == true ? " " : "•";
-            var attach = msg["hasAttachments"]?.GetValue<bool>() == true ? "📎" : "  ";
-            Console.WriteLine($"{flagRead} {attach} {received:yyyy-MM-dd HH:mm}  {Truncate(from, 32),-32}  {Truncate(subject, 70)}");
-            Console.WriteLine($"      id: {id}");
+            var arr = new JsonArray();
+            foreach (var (_, msg) in ordered)
+                arr.Add(ProjectForJson(msg));
+            Console.WriteLine(arr.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
+        }
+        else
+        {
+            foreach (var (received, msg) in ordered)
+            {
+                var from = msg["from"]?["address"]?.GetValue<string>() ?? "(no-from)";
+                var subject = msg["subject"]?.GetValue<string>() ?? "(no-subject)";
+                var id = msg["id"]?.GetValue<string>() ?? "";
+                var flagRead = msg["isRead"]?.GetValue<bool>() == true ? " " : "•";
+                var attach = msg["hasAttachments"]?.GetValue<bool>() == true ? "📎" : "  ";
+                Console.WriteLine($"{flagRead} {attach} {received:yyyy-MM-dd HH:mm}  {Truncate(from, 32),-32}  {Truncate(subject, 70)}");
+                Console.WriteLine($"      id: {id}");
+            }
         }
 
-        Console.Error.WriteLine($"--- {Math.Min(results.Count, opts.Limit)} of {results.Count} match(es) ---");
+        Console.Error.WriteLine($"--- {ordered.Count} of {results.Count} match(es) ---");
     }
 
+    /// <summary>Applies <paramref name="opts"/> predicates against a cached message JSON object.</summary>
     internal static bool Matches(JsonObject msg, SearchOptions opts)
     {
+        if (opts.InFolderId is not null)
+        {
+            var pfid = msg["parentFolderId"]?.GetValue<string>() ?? "";
+            if (!string.Equals(pfid, opts.InFolderId, StringComparison.Ordinal))
+                return false;
+        }
+
         if (opts.From is not null)
         {
             var from = msg["from"]?["address"]?.GetValue<string>() ?? "";
@@ -86,6 +123,13 @@ public static class Search
                 return false;
         }
 
+        if (opts.SubjectRegexCompiled is not null)
+        {
+            var subject = msg["subject"]?.GetValue<string>() ?? "";
+            if (!opts.SubjectRegexCompiled.IsMatch(subject))
+                return false;
+        }
+
         var received = ParseDate(msg["receivedDateTime"]?.GetValue<string>());
         if (opts.Since is not null && received < opts.Since) return false;
         if (opts.Until is not null && received > opts.Until) return false;
@@ -104,6 +148,24 @@ public static class Search
         }
 
         return true;
+    }
+
+    /// <summary>Returns a compact JSON projection of a cached message (no body, no recipients arrays).</summary>
+    internal static JsonObject ProjectForJson(JsonObject msg)
+    {
+        var obj = new JsonObject
+        {
+            ["id"] = msg["id"]?.GetValue<string>(),
+            ["receivedDateTime"] = msg["receivedDateTime"]?.GetValue<string>(),
+            ["subject"] = msg["subject"]?.GetValue<string>(),
+            ["from"] = msg["from"]?["address"]?.GetValue<string>(),
+            ["fromName"] = msg["from"]?["name"]?.GetValue<string>(),
+            ["conversationId"] = msg["conversationId"]?.GetValue<string>(),
+            ["parentFolderId"] = msg["parentFolderId"]?.GetValue<string>(),
+            ["hasAttachments"] = msg["hasAttachments"]?.GetValue<bool>() ?? false,
+            ["isRead"] = msg["isRead"]?.GetValue<bool>() ?? false
+        };
+        return obj;
     }
 
     private static DateTimeOffset ParseDate(string? s) =>

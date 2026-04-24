@@ -25,7 +25,11 @@ mailtool signout                        # clear credentials
 # Read
 mailtool sync [--folder inbox|sent|all]
 mailtool backfill [--folder ...] [--pages N]
-mailtool search [query] [--from X] [--to X] [--subject X] [--since DATE] [--until DATE] [--limit N] [--body]
+mailtool search [query] [--from X] [--to X] [--subject X] [--subject-match <regex>]
+                [--in-folder <alias|path|id>] [--since DATE] [--until DATE]
+                [--limit N] [--body] [--json]
+mailtool stats [--in-folder <alias|path|id>] [--since DATE] [--until DATE]
+               [--from X] [--subject-match <regex>] [--json]
 mailtool show <id> [--raw]
 mailtool thread <conv-id|msg-id> [--raw]
 mailtool status
@@ -37,7 +41,47 @@ mailtool reply     <id> [--body "text"] [--attach path]...
 mailtool reply-all <id> [--body "text"] [--attach path]...
 mailtool forward   <id> --to addr [--to addr]... [--body "text"] [--attach path]...
 mailtool delete <id> [<id>...]
+
+# Organize
+# by explicit ids:
+mailtool move <id> [<id>...] --to <folder> [--create] [--dry-run]
+# by selector (no ids needed):
+mailtool move --to <folder> [--create] [--dry-run] \
+              [--from <sender>] [--subject-match <regex>] \
+              [--in-folder <src>] [--since DATE] [--until DATE]
+mailtool folders list [--json]
+mailtool folders create <path>          # supports nesting: "Projects/Maldives"
+mailtool folders delete <name-or-id>
 ```
+
+### Always dry-run first on selector-based moves
+
+`move` with a selector can sweep hundreds of messages. Run with `--dry-run` first. The output prints the count plus the first 50 subjects so you can spot-check before committing.
+
+### Folder specs
+
+`<folder>` accepts:
+- Aliases: `inbox`, `sent`, `drafts`, `trash` (aka `deleted`/`deleteditems`), `archive`, `junk`, `outbox`
+- A top-level display name: `Archive`, `Important`
+- A nested path: `Inbox/xds`, `Projects/Maldives`
+- A raw Graph folder id (as returned by `folders list`)
+
+`--create` makes `move` or a path resolve missing segments on the fly instead of erroring. Safer default is without `--create`, which forces the caller to know the folder exists.
+
+### Triage workflow (AI-driven)
+
+When asked to triage or classify the inbox:
+
+1. `mailtool folders list` — see existing structure, reuse before proposing new ones.
+2. `mailtool stats --in-folder inbox` — understand the traffic: top senders, domains, monthly distribution. Drives the classification plan.
+3. Propose a classification plan to the user BEFORE executing. Rules like "all messages from X → folder Y" or "subjects matching /maldives|tanfon/ → folder Z".
+4. For each rule, run `mailtool move --from … --to … --dry-run` (or `--subject-match …`). Inspect the sample list. Commit only after user sign-off.
+5. Execute live with `--create` to auto-create missing destination folders.
+6. Vendor/order noise (DigiKey, Amazon, Ramp, PayPal, NoIR, etc.) → `Inbox/purchases`; pure SaaS auto-notifications → `Inbox/notifications`; meeting bots → `Inbox/meetings`.
+
+### Aliases for `--in-folder` and `--to`
+
+Aliases are case-insensitive, resolve to the real Graph id: `inbox`, `sent` (= sentitems), `drafts`, `trash` (= deleteditems), `archive`, `junk` (= junkemail), `outbox`. Display names and nested paths also work: `Inbox/purchases`, `Archive`, `Important`.
 
 ## Cache location
 

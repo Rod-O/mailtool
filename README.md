@@ -99,8 +99,13 @@ mailtool sync [--folder inbox|sent|all]
 mailtool backfill [--folder inbox|sent|all] [--pages N]
 
 # Search
-mailtool search [query] [--from addr] [--to addr] [--subject text]
-                [--since DATE] [--until DATE] [--limit N] [--body]
+mailtool search [query] [--from addr] [--to addr] [--subject text] [--subject-match <regex>]
+                [--in-folder <alias|path|id>] [--since DATE] [--until DATE]
+                [--limit N] [--body] [--json]
+
+# Aggregates (top senders/domains, by-month)
+mailtool stats [--in-folder <alias|path|id>] [--from addr] [--subject-match <regex>]
+               [--since DATE] [--until DATE] [--json]
 
 # Read a message
 mailtool show <id> [--raw]
@@ -136,6 +141,36 @@ mailtool delete <id> [<id>...]
 ```
 
 **Tip:** `<id>` accepts a prefix — paste the first 20 characters of a message id and mailtool resolves it if unique.
+
+### Organize
+
+```bash
+# Move messages by explicit ids
+mailtool move <id> [<id>...] --to <folder> [--create] [--dry-run]
+
+# Move messages by selector (no ids required)
+mailtool move --to <folder> [--create] [--dry-run] \
+              [--from <sender>] [--subject-match <regex>] \
+              [--in-folder <src>] [--since DATE] [--until DATE]
+
+# List all mail folders (tree view with ids and counts)
+mailtool folders list [--json]
+
+# Create a folder (optionally nested, e.g. "Projects/Maldives")
+mailtool folders create <path>
+
+# Delete a folder by alias, display name, path, or raw id
+mailtool folders delete <name-or-id>
+```
+
+`<folder>` accepts:
+
+- Aliases: `inbox`, `sent`, `drafts`, `trash`, `archive`, `junk`, `outbox`
+- Display name: `Archive`, `Important`
+- Nested path: `Inbox/xds`, `Projects/Maldives`
+- Raw Graph folder id
+
+With `--create`, missing path segments are created on the fly; otherwise `move` errors if the destination doesn't exist.
 
 ## Environment variables
 

@@ -75,13 +75,103 @@ try
             break;
         }
 
+        case "move":
+        {
+            var dest = Args.ParseFlag(rest, "--to");
+            if (dest is null) { Console.Error.WriteLine("Usage: mailtool move <id>... --to <folder> [--create] [--dry-run]  |  mailtool move --from <sender> --to <folder> [--in-folder <src>] [--since D] [--until D] [--subject-match <regex>] [--dry-run] [--create]"); return 2; }
+
+            // Strip the --to value pair before reusing Args.ParseSearchOptions (where --to means recipient).
+            var filterArgs = new List<string>();
+            var ids = new List<string>();
+            for (int i = 0; i < rest.Length; i++)
+            {
+                if (rest[i] == "--to") { i++; continue; }  // move's --to is the destination, not a search filter
+                if (rest[i] == "--create" || rest[i] == "--dry-run") continue;
+                if (rest[i].StartsWith('-') || IsFilterValue(rest, i))
+                {
+                    filterArgs.Add(rest[i]);
+                }
+                else
+                {
+                    ids.Add(rest[i]);
+                }
+            }
+
+            var selector = Args.ParseSearchOptions(filterArgs.ToArray());
+            selector.Query = null; // move never treats free-text as a filter
+
+            await Move.RunAsync(
+                ids.ToArray(),
+                selector,
+                dest,
+                createIfMissing: rest.Contains("--create"),
+                dryRun: rest.Contains("--dry-run"),
+                CancellationToken.None);
+            break;
+
+            static bool IsFilterValue(string[] args, int i)
+            {
+                if (i == 0) return false;
+                var prev = args[i - 1];
+                return prev is "--from" or "--subject" or "--subject-match"
+                    or "--since" or "--until" or "--in-folder" or "--limit";
+            }
+        }
+
+        case "folders":
+        {
+            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool folders list [--json] | create <path> | delete <name-or-id>"); return 2; }
+            var sub = rest[0].ToLowerInvariant();
+            switch (sub)
+            {
+                case "list":
+                    await Folders.ListAsync(json: rest.Contains("--json"), CancellationToken.None);
+                    break;
+                case "create":
+                    if (rest.Length < 2) { Console.Error.WriteLine("Usage: mailtool folders create <path>"); return 2; }
+                    await Folders.CreateAsync(rest[1], CancellationToken.None);
+                    break;
+                case "delete":
+                    if (rest.Length < 2) { Console.Error.WriteLine("Usage: mailtool folders delete <name-or-id>"); return 2; }
+                    await Folders.DeleteAsync(rest[1], CancellationToken.None);
+                    break;
+                default:
+                    Console.Error.WriteLine($"Unknown folders subcommand: {sub}");
+                    return 2;
+            }
+            break;
+        }
+
         case "backfill":
             await Backfill.RunAsync(Args.ParseFolders(rest), Args.ParsePages(rest), CancellationToken.None);
             break;
 
         case "search":
-            Search.Run(Args.ParseSearchOptions(rest));
+        {
+            var opts = Args.ParseSearchOptions(rest);
+            if (!string.IsNullOrEmpty(opts.InFolder))
+            {
+                var client = await Auth.GetClientAsync(CancellationToken.None);
+                opts.InFolderId = await Folders.ResolveAsync(client, opts.InFolder, create: false, CancellationToken.None);
+                if (opts.InFolderId is null) { Console.Error.WriteLine($"Folder not found: {opts.InFolder}"); return 1; }
+            }
+            Search.Run(opts);
             break;
+        }
+
+        case "stats":
+        {
+            var opts = Args.ParseSearchOptions(rest);
+            opts.Query = null; // stats ignores free-text query
+            if (!string.IsNullOrEmpty(opts.InFolder))
+            {
+                var client = await Auth.GetClientAsync(CancellationToken.None);
+                opts.InFolderId = await Folders.ResolveAsync(client, opts.InFolder, create: false, CancellationToken.None);
+                if (opts.InFolderId is null) { Console.Error.WriteLine($"Folder not found: {opts.InFolder}"); return 1; }
+            }
+            Stats.Run(opts);
+            break;
+        }
 
         case "show":
             if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool show <id> [--raw]"); return 2; }
@@ -156,14 +246,17 @@ static void PrintHelp()
           mailtool <command> [options]
 
         READ
-          sync [--folder inbox|sent|all]               Incremental delta sync. Default: inbox + sent.
-          backfill [--folder ...] [--pages N]          Page backward from oldest cached message (default: 2 pages).
-          search [query] [options]                     Search local cache.
-            --from <substr>   --to <substr>   --subject <substr>
-            --since <date>    --until <date>  --limit <n>   --body
-          show <id> [--raw]                            Print a single message (HTML→text).
-          thread <conv-id | msg-id> [--raw]            Reconstruct a conversation.
-          status                                       Cache stats + last sync per folder.
+          sync [--folder inbox|sent|all]                    Incremental delta sync.
+          backfill [--folder ...] [--pages N]               Page backward from oldest cached message.
+          search [query] [opts]                             Search local cache.
+            Filters: --from <substr> --to <substr> --subject <substr> --subject-match <regex>
+                     --since <date> --until <date> --in-folder <alias|path|id>
+                     --limit <n> --body (match inside body) --json
+          stats [opts]                                      Aggregate top senders / domains / by-month.
+            Same filter flags as search. Supports --json.
+          show <id> [--raw]                                 Print a single message.
+          thread <conv-id | msg-id> [--raw]                 Reconstruct a conversation.
+          status                                            Cache stats + last sync per folder.
 
         COMPOSE
           send --to addr [--to addr]... [--cc addr]... --subject "text" [--body "text"] [--attach path]...
@@ -173,13 +266,22 @@ static void PrintHelp()
           forward <id> --to addr [--to addr]... [--body "text"] [--attach path]...
           delete <id> [<id>...]
 
+        ORGANIZE
+          move <id> [<id>...] --to <folder> [--create] [--dry-run]
+          move --to <folder> [--create] [--dry-run]
+            Selectors (one or more): --from <sender> --subject-match <regex>
+                                     --in-folder <alias|path|id> --since <date> --until <date>
+          folders list [--json]                             Folder tree (or JSON array with paths).
+          folders create <path>                             Create (supports nesting "Parent/Child").
+          folders delete <name-or-id>                       Delete a folder.
+
         OTHER
           login      Authenticate and verify identity (device-code flow).
           signout    Remove cached auth record.
           help       This text.
 
         ENV:
-          MAILTOOL_CACHE=<path>   Override cache directory (default: ~/.local/share/mailtool/cache).
+          MAILTOOL_CACHE=<path>   Override cache directory.
           MAILTOOL_DEBUG=1        Print stack traces on error.
         """);
 }

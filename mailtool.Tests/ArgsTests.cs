@@ -135,4 +135,42 @@ public class ArgsTests
     {
         Assert.Equal(50, Args.ParseSearchOptions([]).Limit);
     }
+
+    // New flags
+
+    [Fact]
+    public void ParseSearchOptions_SubjectMatch_SetsRegex()
+    {
+        Assert.Equal("maldives|tanfon", Args.ParseSearchOptions(["--subject-match", "maldives|tanfon"]).SubjectRegex);
+    }
+
+    [Fact]
+    public void ParseSearchOptions_InFolder_SetsValue()
+    {
+        Assert.Equal("Inbox/purchases", Args.ParseSearchOptions(["--in-folder", "Inbox/purchases"]).InFolder);
+    }
+
+    [Fact]
+    public void ParseSearchOptions_JsonFlag_SetsJson()
+    {
+        Assert.True(Args.ParseSearchOptions(["--json"]).Json);
+    }
+
+    [Fact]
+    public void ParseSearchOptions_JsonFlagAbsent_DefaultsFalse()
+    {
+        Assert.False(Args.ParseSearchOptions([]).Json);
+    }
+
+    [Fact]
+    public void HasFlag_Present_ReturnsTrue()
+    {
+        Assert.True(Args.HasFlag(["--dry-run", "--create"], "--dry-run"));
+    }
+
+    [Fact]
+    public void HasFlag_Absent_ReturnsFalse()
+    {
+        Assert.False(Args.HasFlag(["--create"], "--dry-run"));
+    }
 }
