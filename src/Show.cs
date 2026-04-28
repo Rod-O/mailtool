@@ -34,10 +34,13 @@ public static class Show
 
     public static void RenderMessage(JsonObject msg, bool rawBody = false)
     {
-        var subject = msg["subject"]?.GetValue<string>() ?? "(no subject)";
-        var from = FormatAddress(msg["from"]);
-        var to = FormatAddressList(msg["to"]);
-        var cc = FormatAddressList(msg["cc"]);
+        // Every value below originates from a remote sender — strip terminal
+        // control characters before writing so a hostile email can't inject
+        // ANSI/OSC sequences into the operator's terminal.
+        var subject = SanitizeForTerminal(msg["subject"]?.GetValue<string>() ?? "(no subject)");
+        var from = SanitizeForTerminal(FormatAddress(msg["from"]));
+        var to = SanitizeForTerminal(FormatAddressList(msg["to"]));
+        var cc = SanitizeForTerminal(FormatAddressList(msg["cc"]));
         var received = msg["receivedDateTime"]?.GetValue<string>();
 
         Console.WriteLine($"From:    {from}");
@@ -55,7 +58,7 @@ public static class Show
         if (!rawBody && string.Equals(contentType, "html", StringComparison.OrdinalIgnoreCase))
             body = HtmlToText(body);
 
-        Console.WriteLine(body);
+        Console.WriteLine(SanitizeForTerminal(body));
     }
 
     public static string FormatAddress(JsonNode? node)
@@ -77,6 +80,25 @@ public static class Show
     private static readonly Regex TagRe = new(@"<[^>]+>", RegexOptions.Compiled);
     private static readonly Regex WsRe = new(@"[ \t]+", RegexOptions.Compiled);
     private static readonly Regex BlankLineRe = new(@"\n{3,}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Matches C0 control characters that should never reach the terminal:
+    /// 0x00–0x08, 0x0B, 0x0C, 0x0E–0x1F, and 0x7F (DEL). Excludes 0x09 (tab),
+    /// 0x0A (LF), and 0x0D (CR), which are legitimate in email bodies.
+    /// Stripping 0x1B (ESC) defangs every ANSI escape sequence — without ESC
+    /// the remainder of the sequence is just printable garbage.
+    /// </summary>
+    private static readonly Regex ControlCharsRe =
+        new(@"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Strips terminal control characters from untrusted email content before
+    /// printing to the user's terminal. Defends against ANSI/OSC escape
+    /// injection from a hostile sender (e.g. a phishing email crafted with
+    /// cursor manipulation, screen clearing, or clipboard-write OSC52).
+    /// </summary>
+    public static string SanitizeForTerminal(string s) =>
+        string.IsNullOrEmpty(s) ? "" : ControlCharsRe.Replace(s, "");
 
     public static string HtmlToText(string html)
     {

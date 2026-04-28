@@ -77,10 +77,73 @@ public class ArgsTests
     }
 
     [Fact]
-    public void ParseFolders_CustomId_PassedThrough()
+    public void ParseFolders_CustomId_PreservesCase()
     {
-        var result = Args.ParseFolders(["--folder", "myCustomFolder"]);
-        Assert.Equal(["mycustomfolder"], result);
+        // Regression: prior implementation lowercased every input, breaking
+        // case-sensitive Graph folder ids. Custom (non-alias) values must
+        // pass through unchanged so raw ids work with sync/search/--in-folder.
+        var rawId = "AAMkADIyN2MxYjVi-WRhMzktNDU2YS09";
+        var result = Args.ParseFolders(["--folder", rawId]);
+        Assert.Equal([rawId], result);
+    }
+
+    [Fact]
+    public void ParseFolders_DisplayName_PreservesCase()
+    {
+        Assert.Equal(["Important"], Args.ParseFolders(["--folder", "Important"]));
+    }
+
+    // Calendar-flavor arg flags (consumed by `calendar create / list / availability`)
+
+    [Fact]
+    public void ParseFlag_TimezoneFlag_ReturnsValue()
+    {
+        Assert.Equal("America/New_York",
+            Args.ParseFlag(["--start", "2026-04-29 07:00", "--timezone", "America/New_York"], "--timezone"));
+    }
+
+    [Fact]
+    public void ParseFlag_ViewFlag_ReturnsValue()
+    {
+        Assert.Equal("week", Args.ParseFlag(["--view", "week", "--date", "2026-04-29"], "--view"));
+    }
+
+    [Fact]
+    public void ParseMultiFlag_Attendees_AggregatesAll()
+    {
+        var result = Args.ParseMultiFlag(
+            ["--attendees", "a@x.com", "--attendees", "b@x.com", "--attendees", "c@x.com"],
+            "--attendees");
+        Assert.Equal(["a@x.com", "b@x.com", "c@x.com"], result);
+    }
+
+    [Fact]
+    public void ParseMultiFlag_AddAttendees_DistinctFromAttendees()
+    {
+        var args = new[] { "--attendees", "a@x.com", "--add-attendees", "b@x.com" };
+        Assert.Equal(["a@x.com"], Args.ParseMultiFlag(args, "--attendees"));
+        Assert.Equal(["b@x.com"], Args.ParseMultiFlag(args, "--add-attendees"));
+    }
+
+    [Fact]
+    public void HasFlag_Online_True()
+    {
+        Assert.True(Args.HasFlag(["--subject", "x", "--online"], "--online"));
+    }
+
+    [Fact]
+    public void HasFlag_NoOnline_DistinctFromOnline()
+    {
+        // --no-online and --online must be detectable independently
+        var args = new[] { "--no-online" };
+        Assert.False(Args.HasFlag(args, "--online"));
+        Assert.True(Args.HasFlag(args, "--no-online"));
+    }
+
+    [Fact]
+    public void HasFlag_Live_True()
+    {
+        Assert.True(Args.HasFlag(["--view", "agenda", "--live"], "--live"));
     }
 
     // ParseSearchOptions

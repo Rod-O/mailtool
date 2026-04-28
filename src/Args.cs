@@ -41,12 +41,13 @@ public static class Args
         {
             if (args[i] == "--folder" && i + 1 < args.Length)
             {
-                return args[i + 1].ToLowerInvariant() switch
+                var raw = args[i + 1];
+                return raw.ToLowerInvariant() switch
                 {
                     "inbox" => ["inbox"],
                     "sent"  => ["sentitems"],
                     "all"   => ["inbox", "sentitems"],
-                    var v   => [v]
+                    _       => [raw]
                 };
             }
         }

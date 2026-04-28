@@ -10,8 +10,10 @@ public static class Storage
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "mailtool", "cache");
     public static readonly string MessagesDir = Path.Combine(CacheRoot, "messages");
     public static readonly string ThreadsDir = Path.Combine(CacheRoot, "threads");
+    public static readonly string EventsDir = Path.Combine(CacheRoot, "events");
     public static readonly string StatePath = Path.Combine(CacheRoot, "state.json");
     public static readonly string IndexPath = Path.Combine(CacheRoot, "index.json");
+    public static readonly string EventsIndexPath = Path.Combine(CacheRoot, "events_index.json");
 
     public static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -26,8 +28,28 @@ public static class Storage
         Directory.CreateDirectory(ThreadsDir);
     }
 
-    public static string SanitizeId(string id) =>
-        id.Replace('/', '_').Replace('+', '-').TrimEnd('=');
+    /// <summary>
+    /// Converts a Graph message/event/thread id into a safe filename component.
+    /// Defends against path traversal: rejects empty/null input, '..' sequences,
+    /// null bytes, and converts both '/' and '\' to '_' so an id can never
+    /// escape the cache directory regardless of OS path semantics.
+    /// </summary>
+    public static string SanitizeId(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+            throw new ArgumentException("Cannot sanitize empty id.", nameof(id));
+
+        var clean = id
+            .Replace('/', '_')
+            .Replace('\\', '_')
+            .Replace('+', '-')
+            .TrimEnd('=');
+
+        if (clean.Length == 0 || clean.Contains("..") || clean.Contains('\0'))
+            throw new ArgumentException($"Unsafe id rejected: '{id}'", nameof(id));
+
+        return clean;
+    }
 
     public static string MessagePath(DateTimeOffset received, string id)
     {
@@ -82,6 +104,30 @@ public static class Storage
         Directory.Exists(MessagesDir)
             ? Directory.EnumerateFiles(MessagesDir, "*.json", SearchOption.AllDirectories)
             : [];
+
+    public static string EventPath(DateTimeOffset start, string id)
+    {
+        var folder = Path.Combine(EventsDir, start.Year.ToString("D4"), start.Month.ToString("D2"));
+        Directory.CreateDirectory(folder);
+        return Path.Combine(folder, SanitizeId(id) + ".json");
+    }
+
+    public static EventsIndex LoadEventsIndex()
+    {
+        if (!File.Exists(EventsIndexPath)) return new EventsIndex();
+        try { return JsonSerializer.Deserialize<EventsIndex>(File.ReadAllText(EventsIndexPath)) ?? new EventsIndex(); }
+        catch { return new EventsIndex(); }
+    }
+
+    public static void SaveEventsIndex(EventsIndex idx) =>
+        File.WriteAllText(EventsIndexPath, JsonSerializer.Serialize(idx, JsonOpts));
+
+    public static JsonObject? LoadEvent(string relativePath)
+    {
+        var full = Path.Combine(CacheRoot, relativePath);
+        if (!File.Exists(full)) return null;
+        return JsonNode.Parse(File.ReadAllText(full))?.AsObject();
+    }
 }
 
 public class State
@@ -100,4 +146,12 @@ public class Index
 {
     public Dictionary<string, string> ById { get; set; } = new();
     public Dictionary<string, List<string>> ByConversation { get; set; } = new();
+}
+
+public class EventsIndex
+{
+    public Dictionary<string, string> ById { get; set; } = new();
+    public DateTimeOffset? WindowStart { get; set; }
+    public DateTimeOffset? WindowEnd { get; set; }
+    public DateTimeOffset? LastSync { get; set; }
 }

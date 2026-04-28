@@ -33,7 +33,13 @@ public static class Search
     public static void Run(SearchOptions opts)
     {
         if (!string.IsNullOrEmpty(opts.SubjectRegex))
-            opts.SubjectRegexCompiled = new Regex(opts.SubjectRegex, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            // 1-second match timeout protects against ReDoS via hostile patterns
+            // (e.g. (a+)+$). Subjects are short, but bodies can be large; without
+            // the timeout a pathological pattern could hang the process.
+            opts.SubjectRegexCompiled = new Regex(
+                opts.SubjectRegex,
+                RegexOptions.IgnoreCase | RegexOptions.Compiled,
+                TimeSpan.FromSeconds(1));
 
         var index = Storage.LoadIndex();
         var results = new List<(DateTimeOffset received, JsonObject msg)>();
@@ -64,8 +70,10 @@ public static class Search
         {
             foreach (var (received, msg) in ordered)
             {
-                var from = msg["from"]?["address"]?.GetValue<string>() ?? "(no-from)";
-                var subject = msg["subject"]?.GetValue<string>() ?? "(no-subject)";
+                // Strip terminal control chars from sender + subject — these are
+                // attacker-controlled fields and must never reach the TTY raw.
+                var from = Show.SanitizeForTerminal(msg["from"]?["address"]?.GetValue<string>() ?? "(no-from)");
+                var subject = Show.SanitizeForTerminal(msg["subject"]?.GetValue<string>() ?? "(no-subject)");
                 var id = msg["id"]?.GetValue<string>() ?? "";
                 var flagRead = msg["isRead"]?.GetValue<bool>() == true ? " " : "•";
                 var attach = msg["hasAttachments"]?.GetValue<bool>() == true ? "📎" : "  ";

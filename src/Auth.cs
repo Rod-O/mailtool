@@ -14,6 +14,7 @@ public static class Auth
     [
         "Mail.ReadWrite",
         "Mail.Send",
+        "MailboxSettings.ReadWrite",
         "Calendars.ReadWrite",
         "Contacts.ReadWrite",
         "Files.ReadWrite.All",

@@ -172,6 +172,39 @@ mailtool folders delete <name-or-id>
 
 With `--create`, missing path segments are created on the fly; otherwise `move` errors if the destination doesn't exist.
 
+### Rules
+
+Server-side Exchange/Outlook inbox rules. Unlike `move`, these run on the server for every incoming message even when mailtool is not running. Conditions and actions map to the standard Outlook rules feature.
+
+```bash
+# List rules on the inbox (default folder)
+mailtool rules list [--json] [--in-folder <folder>]
+
+# Show one rule's full conditions and actions
+mailtool rules show <id-or-name> [--in-folder <folder>]
+
+# Create a rule
+mailtool rules create --name "Vendor → purchases" \
+              [--from <addr>]... [--sent-to <addr>]... \
+              [--subject-contains <text>]... [--body-contains <text>]... \
+              [--has-attachment] \
+              [--to-folder <folder>] [--mark-read] [--delete] \
+              [--forward-to <addr>]... [--stop] \
+              [--sequence <n>] [--disabled] \
+              [--in-folder <folder>]
+
+# Toggle / remove
+mailtool rules enable  <id-or-name>
+mailtool rules disable <id-or-name>
+mailtool rules delete  <id-or-name>
+```
+
+At least one condition (`--from`, `--sent-to`, `--subject-contains`, `--body-contains`, or `--has-attachment`) and one action (`--to-folder`, `--mark-read`, `--delete`, `--forward-to`, or `--stop`) are required when creating.
+
+`--stop` sets *Stop processing rules* on the action so later rules don't fire. `--sequence` controls evaluation order (lower runs first). `--disabled` creates the rule disabled; toggle with `enable`/`disable` later.
+
+> Rules require the `MailboxSettings.ReadWrite` Graph scope. If you upgrade an existing install, run `mailtool signout && mailtool login` once so the new scope is consented.
+
 ## Environment variables
 
 | Variable | Default | Description |

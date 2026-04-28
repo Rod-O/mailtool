@@ -14,9 +14,11 @@ public static class Stats
     public static void Run(SearchOptions opts)
     {
         if (!string.IsNullOrEmpty(opts.SubjectRegex))
+            // 1s match timeout: defend against ReDoS via hostile regex patterns.
             opts.SubjectRegexCompiled = new System.Text.RegularExpressions.Regex(
                 opts.SubjectRegex,
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled,
+                TimeSpan.FromSeconds(1));
 
         var senders = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var domains = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

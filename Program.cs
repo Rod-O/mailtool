@@ -146,6 +146,209 @@ try
             await Backfill.RunAsync(Args.ParseFolders(rest), Args.ParsePages(rest), CancellationToken.None);
             break;
 
+        case "calendar":
+        {
+            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool calendar create|list|show|delete [...]"); return 2; }
+            var sub = rest[0].ToLowerInvariant();
+            switch (sub)
+            {
+                case "create":
+                {
+                    var subject  = Args.ParseFlag(rest, "--subject");
+                    var startStr = Args.ParseFlag(rest, "--start");
+                    var endStr   = Args.ParseFlag(rest, "--end");
+                    if (string.IsNullOrEmpty(subject) || string.IsNullOrEmpty(startStr) || string.IsNullOrEmpty(endStr))
+                    {
+                        Console.Error.WriteLine("Usage: mailtool calendar create --subject \"<text>\" --start \"<datetime>\" --end \"<datetime>\" [--timezone <tz>] [--attendees <addr>]... [--optional <addr>]... [--body \"<text>\"] [--location \"<text>\"] [--online]");
+                        return 2;
+                    }
+                    await Calendar.CreateAsync(
+                        subject,
+                        startStr,
+                        endStr,
+                        Args.ParseFlag(rest, "--timezone") ?? "UTC",
+                        Args.ParseMultiFlag(rest, "--attendees"),
+                        Args.ParseMultiFlag(rest, "--optional"),
+                        Args.ParseFlag(rest, "--body"),
+                        Args.ParseFlag(rest, "--location"),
+                        rest.Contains("--online"),
+                        CancellationToken.None);
+                    break;
+                }
+                case "list":
+                {
+                    int daysAhead = 7, daysBack = 0;
+                    var d = Args.ParseFlag(rest, "--days");
+                    if (!string.IsNullOrEmpty(d) && int.TryParse(d, out var n)) daysAhead = n;
+                    var b = Args.ParseFlag(rest, "--days-back");
+                    if (!string.IsNullOrEmpty(b) && int.TryParse(b, out var bn)) daysBack = bn;
+                    var view = Args.ParseFlag(rest, "--view") ?? "agenda";
+                    var date = Args.ParseFlag(rest, "--date");
+                    await Calendar.ListAsync(
+                        daysBack, daysAhead,
+                        rest.Contains("--json"),
+                        live: rest.Contains("--live"),
+                        viewMode: view,
+                        dateStr: date,
+                        CancellationToken.None);
+                    break;
+                }
+                case "sync":
+                {
+                    int daysBack = 7, daysAhead = 60;
+                    var b = Args.ParseFlag(rest, "--days-back");
+                    if (!string.IsNullOrEmpty(b) && int.TryParse(b, out var bn)) daysBack = bn;
+                    var d = Args.ParseFlag(rest, "--days");
+                    if (!string.IsNullOrEmpty(d) && int.TryParse(d, out var dn)) daysAhead = dn;
+                    await Calendar.SyncAsync(daysBack, daysAhead, CancellationToken.None);
+                    break;
+                }
+                case "show":
+                {
+                    var id = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (id is null) { Console.Error.WriteLine("Usage: mailtool calendar show <id>"); return 2; }
+                    await Calendar.ShowAsync(id, CancellationToken.None);
+                    break;
+                }
+                case "delete":
+                {
+                    var id = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (id is null) { Console.Error.WriteLine("Usage: mailtool calendar delete <id>"); return 2; }
+                    await Calendar.DeleteAsync(id, CancellationToken.None);
+                    break;
+                }
+                case "update":
+                {
+                    var id = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (id is null) { Console.Error.WriteLine("Usage: mailtool calendar update <id> [--subject ...] [--start ...] [--end ...] [--timezone ...] [--attendees <a>]... [--add-attendees <a>]... [--add-optional <a>]... [--body ...] [--location ...] [--online | --no-online]"); return 2; }
+                    bool? online = null;
+                    if (rest.Contains("--online")) online = true;
+                    else if (rest.Contains("--no-online")) online = false;
+                    await Calendar.UpdateAsync(
+                        id,
+                        Args.ParseFlag(rest, "--subject"),
+                        Args.ParseFlag(rest, "--start"),
+                        Args.ParseFlag(rest, "--end"),
+                        Args.ParseFlag(rest, "--timezone"),
+                        Args.ParseMultiFlag(rest, "--attendees"),
+                        Args.ParseMultiFlag(rest, "--add-attendees"),
+                        Args.ParseMultiFlag(rest, "--add-optional"),
+                        Args.ParseFlag(rest, "--body"),
+                        Args.ParseFlag(rest, "--location"),
+                        online,
+                        CancellationToken.None);
+                    break;
+                }
+                case "respond":
+                {
+                    var id = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (id is null) { Console.Error.WriteLine("Usage: mailtool calendar respond <id> --accept|--decline|--tentative [--message \"text\"] [--no-send]"); return 2; }
+                    string? action = rest.Contains("--accept") ? "accept"
+                                   : rest.Contains("--decline") ? "decline"
+                                   : rest.Contains("--tentative") ? "tentative"
+                                   : null;
+                    if (action is null) { Console.Error.WriteLine("Pass one of --accept / --decline / --tentative."); return 2; }
+                    await Calendar.RespondAsync(
+                        id,
+                        action,
+                        Args.ParseFlag(rest, "--message"),
+                        sendResponse: !rest.Contains("--no-send"),
+                        CancellationToken.None);
+                    break;
+                }
+                case "availability":
+                {
+                    var startStr = Args.ParseFlag(rest, "--start");
+                    var endStr   = Args.ParseFlag(rest, "--end");
+                    if (string.IsNullOrEmpty(startStr) || string.IsNullOrEmpty(endStr))
+                    {
+                        Console.Error.WriteLine("Usage: mailtool calendar availability --start <datetime> --end <datetime> [--timezone <tz>] [--interval <minutes>] [--attendees <addr>]...");
+                        return 2;
+                    }
+                    int interval = 30;
+                    var iv = Args.ParseFlag(rest, "--interval");
+                    if (!string.IsNullOrEmpty(iv) && int.TryParse(iv, out var n)) interval = n;
+                    var schedules = Args.ParseMultiFlag(rest, "--attendees");
+                    if (schedules.Length == 0) schedules = Args.ParseMultiFlag(rest, "--schedule");
+                    await Calendar.AvailabilityAsync(
+                        startStr, endStr,
+                        Args.ParseFlag(rest, "--timezone") ?? "UTC",
+                        schedules,
+                        interval,
+                        CancellationToken.None);
+                    break;
+                }
+                default:
+                    Console.Error.WriteLine($"Unknown calendar subcommand: {sub}");
+                    return 2;
+            }
+            break;
+        }
+
+        case "rules":
+        {
+            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool rules list|show|create|delete|enable|disable [...]"); return 2; }
+            var sub = rest[0].ToLowerInvariant();
+            var folder = Args.ParseFlag(rest, "--in-folder") ?? "inbox";
+            switch (sub)
+            {
+                case "list":
+                    await Rules.ListAsync(folder, json: rest.Contains("--json"), CancellationToken.None);
+                    break;
+                case "show":
+                {
+                    var spec = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (spec is null) { Console.Error.WriteLine("Usage: mailtool rules show <id-or-name> [--in-folder <folder>]"); return 2; }
+                    await Rules.ShowAsync(folder, spec, CancellationToken.None);
+                    break;
+                }
+                case "create":
+                {
+                    var name = Args.ParseFlag(rest, "--name");
+                    if (string.IsNullOrWhiteSpace(name)) { Console.Error.WriteLine("Usage: mailtool rules create --name \"<name>\" [conditions] [actions]"); return 2; }
+                    int? sequence = null;
+                    var seqStr = Args.ParseFlag(rest, "--sequence");
+                    if (!string.IsNullOrEmpty(seqStr) && int.TryParse(seqStr, out var s)) sequence = s;
+                    await Rules.CreateAsync(
+                        folder,
+                        name,
+                        Args.ParseMultiFlag(rest, "--from"),
+                        Args.ParseMultiFlag(rest, "--sent-to"),
+                        Args.ParseMultiFlag(rest, "--subject-contains"),
+                        Args.ParseMultiFlag(rest, "--body-contains"),
+                        rest.Contains("--has-attachment"),
+                        Args.ParseFlag(rest, "--to-folder"),
+                        rest.Contains("--mark-read"),
+                        rest.Contains("--delete"),
+                        Args.ParseMultiFlag(rest, "--forward-to"),
+                        rest.Contains("--stop"),
+                        sequence,
+                        rest.Contains("--disabled"),
+                        CancellationToken.None);
+                    break;
+                }
+                case "delete":
+                {
+                    var spec = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (spec is null) { Console.Error.WriteLine("Usage: mailtool rules delete <id-or-name> [--in-folder <folder>]"); return 2; }
+                    await Rules.DeleteAsync(folder, spec, CancellationToken.None);
+                    break;
+                }
+                case "enable":
+                case "disable":
+                {
+                    var spec = rest.Skip(1).FirstOrDefault(a => !a.StartsWith('-'));
+                    if (spec is null) { Console.Error.WriteLine($"Usage: mailtool rules {sub} <id-or-name> [--in-folder <folder>]"); return 2; }
+                    await Rules.SetEnabledAsync(folder, spec, enabled: sub == "enable", CancellationToken.None);
+                    break;
+                }
+                default:
+                    Console.Error.WriteLine($"Unknown rules subcommand: {sub}");
+                    return 2;
+            }
+            break;
+        }
+
         case "search":
         {
             var opts = Args.ParseSearchOptions(rest);
@@ -274,6 +477,38 @@ static void PrintHelp()
           folders list [--json]                             Folder tree (or JSON array with paths).
           folders create <path>                             Create (supports nesting "Parent/Child").
           folders delete <name-or-id>                       Delete a folder.
+
+        CALENDAR (M365 events — invites, online meetings, listings)
+          calendar create --subject "<text>" --start "<datetime>" --end "<datetime>"
+                          [--timezone <tz>] [--attendees <addr>]... [--optional <addr>]...
+                          [--body "<text>"] [--location "<text>"] [--online]
+          calendar sync   [--days <n>] [--days-back <n>]   Cache events locally for fast offline list/views.
+          calendar list   [--days <n>] [--days-back <n>] [--json] [--live]
+                          [--view agenda|day|week] [--date YYYY-MM-DD]
+          calendar show   <id>
+          calendar delete <id>
+          calendar update <id> [--subject ...] [--start ...] [--end ...] [--timezone ...]
+                          [--attendees <a>]... [--add-attendees <a>]... [--add-optional <a>]...
+                          [--body ...] [--location ...] [--online | --no-online]
+          calendar respond <id> --accept|--decline|--tentative [--message "text"] [--no-send]
+          calendar availability --start <datetime> --end <datetime>
+                          [--timezone <tz>] [--interval <minutes>]
+                          [--attendees <addr>]...
+
+        RULES (server-side Exchange/Outlook inbox rules — fire on every incoming message)
+          rules list [--json] [--in-folder <folder>]        List rules on the folder (default: inbox).
+          rules show <id-or-name> [--in-folder <folder>]    Show a rule's full conditions/actions.
+          rules create --name "<name>"
+                       [--from <addr>]... [--sent-to <addr>]...
+                       [--subject-contains <text>]... [--body-contains <text>]...
+                       [--has-attachment]
+                       [--to-folder <folder>] [--mark-read] [--delete]
+                       [--forward-to <addr>]... [--stop]
+                       [--sequence <n>] [--disabled]
+                       [--in-folder <folder>]
+          rules enable  <id-or-name> [--in-folder <folder>]
+          rules disable <id-or-name> [--in-folder <folder>]
+          rules delete  <id-or-name> [--in-folder <folder>]
 
         OTHER
           login      Authenticate and verify identity (device-code flow).

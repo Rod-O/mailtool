@@ -87,9 +87,11 @@ public static class Move
         else if (selector is not null && HasAnyFilter(selector))
         {
             if (!string.IsNullOrEmpty(selector.SubjectRegex))
+                // 1s match timeout: defend against ReDoS via hostile regex patterns.
                 selector.SubjectRegexCompiled = new System.Text.RegularExpressions.Regex(
                     selector.SubjectRegex,
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled,
+                    TimeSpan.FromSeconds(1));
 
             foreach (var (id, rel) in index.ById)
             {
