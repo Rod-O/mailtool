@@ -27,8 +27,22 @@ public static class Calendar
         string? body,
         string? location,
         bool online,
+        bool autoYes,
         CancellationToken ct)
     {
+        // A create with attendees triggers Graph to send invites — same blast
+        // radius as an outbound mail. Gate it through the same confirmation.
+        // Events with no attendees skip the prompt (purely local calendar entry).
+        if (attendees.Length > 0 || optionalAttendees.Length > 0)
+        {
+            if (Confirm.CalendarCreate(subject, startStr, endStr, timezone, attendees, optionalAttendees, body, autoYes) == Confirm.Outcome.Cancel)
+            {
+                Console.Error.WriteLine("Cancelled — event not created.");
+                Environment.Exit(1);
+                return;
+            }
+        }
+
         var client = await Auth.GetClientAsync(ct);
 
         var ev = new Event

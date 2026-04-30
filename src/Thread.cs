@@ -2,8 +2,18 @@ using System.Text.Json.Nodes;
 
 namespace MailTool;
 
+/// <summary>
+/// Reconstructs an email thread from the local cache and prints all messages
+/// in chronological order. Accepts either a conversation id or any message id
+/// from the thread.
+/// </summary>
 public static class ThreadCmd
 {
+    /// <summary>
+    /// Resolves <paramref name="conversationIdOrMessageId"/> to a conversation
+    /// (looking up by message id if the input isn't itself a conversation id)
+    /// and renders every cached message in that thread.
+    /// </summary>
     public static void Run(string conversationIdOrMessageId, bool rawBody = false)
     {
         var index = Storage.LoadIndex();

@@ -16,12 +16,20 @@ public static class Send
         string subject,
         string body,
         string[] attachments,
+        bool autoYes,
         CancellationToken ct)
     {
         if (to.Length == 0)
         {
             Console.Error.WriteLine("At least one --to recipient is required.");
             Environment.Exit(2);
+            return;
+        }
+
+        if (Confirm.Email("send", to, cc, subject, body, autoYes) == Confirm.Outcome.Cancel)
+        {
+            Console.Error.WriteLine("Cancelled — message not sent.");
+            Environment.Exit(1);
             return;
         }
 

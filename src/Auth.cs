@@ -3,6 +3,11 @@ using Microsoft.Graph;
 
 namespace MailTool;
 
+/// <summary>
+/// Microsoft Graph authentication using the device-code flow with persistent
+/// token cache. First run prompts the user with a code; subsequent runs reuse
+/// the cached refresh token silently.
+/// </summary>
 public static class Auth
 {
     // Microsoft Graph PowerShell app ID — publicly known, multi-tenant, covers all delegated scopes.
@@ -27,6 +32,12 @@ public static class Auth
         "auth-record.json"
     );
 
+    /// <summary>
+    /// Returns an authenticated <see cref="GraphServiceClient"/>. Uses the cached
+    /// auth record when available, falls back to interactive device-code flow
+    /// (which has a 120s timeout — must run in a terminal) on first use or after
+    /// the cache is invalidated.
+    /// </summary>
     public static async Task<GraphServiceClient> GetClientAsync(CancellationToken ct = default)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(AuthRecordPath)!);
@@ -81,6 +92,7 @@ public static class Auth
         return new GraphServiceClient(credential, Scopes);
     }
 
+    /// <summary>Removes the cached auth record so the next call re-authenticates from scratch.</summary>
     public static void SignOut()
     {
         if (File.Exists(AuthRecordPath))

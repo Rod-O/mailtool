@@ -3,8 +3,18 @@ using Microsoft.Graph;
 
 namespace MailTool;
 
+/// <summary>
+/// Pages backwards from the oldest cached message to fetch older history.
+/// Used after the initial delta sync to extend the local cache further into
+/// the past, since delta sync only covers messages received after the first
+/// fetch.
+/// </summary>
 public static class Backfill
 {
+    /// <summary>
+    /// Pages backwards through the named folders, fetching <paramref name="pages"/>
+    /// pages of older messages and storing them in the local cache.
+    /// </summary>
     public static async Task RunAsync(string[] folders, int pages, CancellationToken ct)
     {
         Storage.EnsureDirs();

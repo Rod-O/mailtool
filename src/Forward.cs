@@ -15,6 +15,7 @@ public static class Forward
         string[] to,
         string body,
         string[] attachments,
+        bool autoYes,
         CancellationToken ct)
     {
         if (to.Length == 0)
@@ -31,6 +32,17 @@ public static class Forward
         if (fullId is null)
         {
             Console.Error.WriteLine($"Message not found: {messageId}");
+            Environment.Exit(1);
+            return;
+        }
+
+        var origRel = index.ById.TryGetValue(fullId, out var rel) ? rel : null;
+        var orig = origRel is null ? null : Storage.LoadMessage(origRel);
+        var origSubject = orig?["subject"]?.GetValue<string>() ?? "(no subject)";
+
+        if (Confirm.Email("forward", to, Array.Empty<string>(), "Fw: " + origSubject, body, autoYes) == Confirm.Outcome.Cancel)
+        {
+            Console.Error.WriteLine("Cancelled — forward not sent.");
             Environment.Exit(1);
             return;
         }

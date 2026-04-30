@@ -16,6 +16,7 @@ public static class Reply
         string body,
         bool replyAll,
         string[] attachments,
+        bool autoYes,
         CancellationToken ct)
     {
         var client = await Auth.GetClientAsync(ct);
@@ -25,6 +26,32 @@ public static class Reply
         if (fullId is null)
         {
             Console.Error.WriteLine($"Message not found: {messageId}");
+            Environment.Exit(1);
+            return;
+        }
+
+        // Pull the original from cache so the confirmation preview can show the
+        // user who they're actually replying to. Reply recipients are filled in
+        // server-side by createReply / createReplyAll, but we mirror them locally
+        // for the preview.
+        var origRel = index.ById.TryGetValue(fullId, out var rel) ? rel : null;
+        var orig = origRel is null ? null : Storage.LoadMessage(origRel);
+        var origFromAddr = orig?["from"]?["address"]?.GetValue<string>() ?? "";
+        var origSubject  = orig?["subject"]?.GetValue<string>() ?? "(no subject)";
+        var replyTo = string.IsNullOrEmpty(origFromAddr) ? Array.Empty<string>() : new[] { origFromAddr };
+        var replyCc = Array.Empty<string>();
+        if (replyAll && orig?["to"] is System.Text.Json.Nodes.JsonArray toArr)
+        {
+            // reply-all: surface other recipients to make blast radius visible.
+            replyCc = toArr
+                .Select(n => n?["address"]?.GetValue<string>() ?? "")
+                .Where(s => !string.IsNullOrEmpty(s) && !string.Equals(s, origFromAddr, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+
+        if (Confirm.Email(replyAll ? "reply-all" : "reply", replyTo, replyCc, "Re: " + origSubject, body, autoYes) == Confirm.Outcome.Cancel)
+        {
+            Console.Error.WriteLine("Cancelled — reply not sent.");
             Environment.Exit(1);
             return;
         }

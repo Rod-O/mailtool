@@ -3,8 +3,17 @@ using System.Text.RegularExpressions;
 
 namespace MailTool;
 
+/// <summary>
+/// Prints a single cached message to stdout — headers (From/To/Cc/Date/Subject)
+/// followed by a separator and the body. HTML bodies are converted to plain
+/// text by default; use <c>rawBody=true</c> to preserve raw HTML.
+/// </summary>
 public static class Show
 {
+    /// <summary>
+    /// Loads the message identified by <paramref name="id"/> from the cache and
+    /// renders it. <paramref name="id"/> may be a full Graph id or a unique prefix.
+    /// </summary>
     public static void Run(string id, bool rawBody = false)
     {
         var index = Storage.LoadIndex();
@@ -32,6 +41,10 @@ public static class Show
         RenderMessage(msg, rawBody);
     }
 
+    /// <summary>
+    /// Renders a message JSON object in the standard headers-then-body layout.
+    /// Sanitizes all sender-controlled strings to strip terminal control sequences.
+    /// </summary>
     public static void RenderMessage(JsonObject msg, bool rawBody = false)
     {
         // Every value below originates from a remote sender — strip terminal
@@ -61,6 +74,10 @@ public static class Show
         Console.WriteLine(SanitizeForTerminal(body));
     }
 
+    /// <summary>
+    /// Formats a single Graph email-address node as <c>"Name &lt;addr&gt;"</c>,
+    /// or just the address if the name is missing.
+    /// </summary>
     public static string FormatAddress(JsonNode? node)
     {
         if (node is null) return "";
@@ -69,6 +86,7 @@ public static class Show
         return string.IsNullOrEmpty(name) ? addr : $"{name} <{addr}>";
     }
 
+    /// <summary>Formats a Graph email-address array as a comma-separated list of <see cref="FormatAddress"/> entries.</summary>
     public static string FormatAddressList(JsonNode? node)
     {
         if (node is not JsonArray arr) return "";
@@ -100,6 +118,11 @@ public static class Show
     public static string SanitizeForTerminal(string s) =>
         string.IsNullOrEmpty(s) ? "" : ControlCharsRe.Replace(s, "");
 
+    /// <summary>
+    /// Best-effort HTML → plain-text conversion: drops script/style blocks,
+    /// replaces block-level closers with newlines, strips remaining tags,
+    /// decodes HTML entities, and collapses whitespace.
+    /// </summary>
     public static string HtmlToText(string html)
     {
         if (string.IsNullOrEmpty(html)) return "";

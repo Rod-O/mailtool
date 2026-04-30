@@ -5,6 +5,11 @@ using Microsoft.Graph.Models;
 
 namespace MailTool;
 
+/// <summary>
+/// Incremental delta sync of Microsoft Graph mail folders into the local cache.
+/// Persists a delta token per folder so subsequent runs only fetch new and
+/// changed messages since the last sync.
+/// </summary>
 public static class Sync
 {
     internal static readonly string[] SelectFields =
@@ -18,6 +23,10 @@ public static class Sync
         "flag", "categories", "webLink", "parentFolderId"
     ];
 
+    /// <summary>
+    /// Runs a delta sync on the named folders, writing new/updated messages
+    /// to the cache and saving the resulting delta token for the next run.
+    /// </summary>
     public static async Task RunAsync(string[] folders, CancellationToken ct)
     {
         Storage.EnsureDirs();

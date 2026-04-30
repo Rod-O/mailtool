@@ -14,6 +14,7 @@ A CLI tool that syncs Microsoft 365 / Exchange mail to a local cache and lets yo
 4. **For new outbound emails, use `mailtool send`.**
 5. **Partial ids are fine** — first 20 chars of a message id is enough if unique.
 6. **Run mailtool interactively** — device-code auth has a 120s timeout and will fail as a background task.
+7. **Outbound is gated.** `send`, `reply`, `reply-all`, `forward`, and `calendar create` (with attendees) print a preview and prompt `[Y]es / [N]o / [R]ead more` when stdin is a terminal, or refuse with exit code 1 when stdin is redirected (e.g. invoked from an agent harness). Pass `--yes` (or `-y`) only when you have an explicit authorization to bypass the prompt — the gate exists to stop accidental sends, so bypassing it is its own deliberate decision.
 
 ## Commands
 

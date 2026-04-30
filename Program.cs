@@ -20,24 +20,26 @@ try
         case "reply":
         case "reply-all":
         {
-            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool reply <id> [--body \"text\"] [--attach path]..."); return 2; }
+            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool reply <id> [--body \"text\"] [--attach path]... [--yes]"); return 2; }
             await Reply.RunAsync(
                 rest[0],
                 Args.ParseFlag(rest, "--body") ?? "",
                 cmd == "reply-all" || rest.Contains("--all"),
                 Args.ParseMultiFlag(rest, "--attach"),
+                rest.Contains("--yes") || rest.Contains("-y"),
                 CancellationToken.None);
             break;
         }
 
         case "forward":
         {
-            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool forward <id> --to addr [--to addr]... [--body \"text\"] [--attach path]..."); return 2; }
+            if (rest.Length < 1) { Console.Error.WriteLine("Usage: mailtool forward <id> --to addr [--to addr]... [--body \"text\"] [--attach path]... [--yes]"); return 2; }
             await Forward.RunAsync(
                 rest[0],
                 Args.ParseMultiFlag(rest, "--to"),
                 Args.ParseFlag(rest, "--body") ?? "",
                 Args.ParseMultiFlag(rest, "--attach"),
+                rest.Contains("--yes") || rest.Contains("-y"),
                 CancellationToken.None);
             break;
         }
@@ -45,13 +47,14 @@ try
         case "send":
         {
             var sendTo = Args.ParseMultiFlag(rest, "--to");
-            if (sendTo.Length == 0) { Console.Error.WriteLine("Usage: mailtool send --to addr [--to addr]... [--cc addr]... --subject \"text\" [--body \"text\"] [--attach path]..."); return 2; }
+            if (sendTo.Length == 0) { Console.Error.WriteLine("Usage: mailtool send --to addr [--to addr]... [--cc addr]... --subject \"text\" [--body \"text\"] [--attach path]... [--yes]"); return 2; }
             await Send.RunAsync(
                 sendTo,
                 Args.ParseMultiFlag(rest, "--cc"),
                 Args.ParseFlag(rest, "--subject") ?? "",
                 Args.ParseFlag(rest, "--body") ?? "",
                 Args.ParseMultiFlag(rest, "--attach"),
+                rest.Contains("--yes") || rest.Contains("-y"),
                 CancellationToken.None);
             break;
         }
@@ -172,6 +175,7 @@ try
                         Args.ParseFlag(rest, "--body"),
                         Args.ParseFlag(rest, "--location"),
                         rest.Contains("--online"),
+                        rest.Contains("--yes") || rest.Contains("-y"),
                         CancellationToken.None);
                     break;
                 }
@@ -462,12 +466,16 @@ static void PrintHelp()
           status                                            Cache stats + last sync per folder.
 
         COMPOSE
-          send --to addr [--to addr]... [--cc addr]... --subject "text" [--body "text"] [--attach path]...
+          send --to addr [--to addr]... [--cc addr]... --subject "text" [--body "text"] [--attach path]... [--yes]
           draft [--to addr]... [--cc addr]... [--subject "text"] [--body "text"] [--attach path]...
-          reply <id> [--body "text"] [--attach path]...
-          reply-all <id> [--body "text"] [--attach path]...
-          forward <id> --to addr [--to addr]... [--body "text"] [--attach path]...
+          reply <id> [--body "text"] [--attach path]... [--yes]
+          reply-all <id> [--body "text"] [--attach path]... [--yes]
+          forward <id> --to addr [--to addr]... [--body "text"] [--attach path]... [--yes]
           delete <id> [<id>...]
+
+          All outbound commands (send/reply/reply-all/forward) print a preview and
+          prompt [Y]es / [N]o / [R]ead more before dispatch. With stdin redirected
+          (non-TTY) they refuse unless --yes is passed.
 
         ORGANIZE
           move <id> [<id>...] --to <folder> [--create] [--dry-run]

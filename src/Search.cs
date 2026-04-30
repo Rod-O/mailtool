@@ -7,14 +7,23 @@ namespace MailTool;
 /// <summary>Search filter + output options shared across commands that select messages.</summary>
 public class SearchOptions
 {
+    /// <summary>Free-text query — matched against subject, sender, and (optionally) body.</summary>
     public string? Query { get; set; }
+    /// <summary>Substring filter on the sender address.</summary>
     public string? From { get; set; }
+    /// <summary>Substring filter on the To recipients.</summary>
     public string? To { get; set; }
+    /// <summary>Substring filter on the subject line.</summary>
     public string? Subject { get; set; }
+    /// <summary>Regex filter on the subject line (more powerful than <see cref="Subject"/>).</summary>
     public string? SubjectRegex { get; set; }
+    /// <summary>Lower bound on receivedDateTime (inclusive).</summary>
     public DateTimeOffset? Since { get; set; }
+    /// <summary>Upper bound on receivedDateTime (exclusive).</summary>
     public DateTimeOffset? Until { get; set; }
+    /// <summary>Maximum number of results to return. Default 50.</summary>
     public int Limit { get; set; } = 50;
+    /// <summary>If true, also match <see cref="Query"/> against the message body, not just headers.</summary>
     public bool BodyMatch { get; set; } = false;
     /// <summary>User-supplied folder spec (alias, path, or raw id). Resolution to <see cref="InFolderId"/> is done by the caller before matching.</summary>
     public string? InFolder { get; set; }
