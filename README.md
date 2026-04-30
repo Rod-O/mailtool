@@ -122,25 +122,34 @@ mailtool status
 ```bash
 # New email
 mailtool send --to addr [--to addr]... [--cc addr]... \
-              --subject "text" [--body "text"] [--attach path]...
+              --subject "text" [--body "text"] [--attach path]... [--yes]
 
-# Save as draft (prints draft id)
+# Save as draft (prints draft id) — never sends, no confirmation needed
 mailtool draft [--to addr]... [--cc addr]... \
                [--subject "text"] [--body "text"] [--attach path]...
 
 # Reply / reply-all (supports attachments)
-mailtool reply     <id> [--body "text"] [--attach path]...
-mailtool reply-all <id> [--body "text"] [--attach path]...
+mailtool reply     <id> [--body "text"] [--attach path]... [--yes]
+mailtool reply-all <id> [--body "text"] [--attach path]... [--yes]
 
 # Forward
 mailtool forward <id> --to addr [--to addr]... \
-                 [--body "text"] [--attach path]...
+                 [--body "text"] [--attach path]... [--yes]
 
 # Delete (moves to Deleted Items)
 mailtool delete <id> [<id>...]
 ```
 
 **Tip:** `<id>` accepts a prefix — paste the first 20 characters of a message id and mailtool resolves it if unique.
+
+**Confirmation gate.** `send`, `reply`, `reply-all`, `forward`, and `calendar create` (when attendees are present) **stop the flow before dispatch**:
+
+- They print a preview — `To` / `Cc` / `Subject` plus the first 20 lines of the body.
+- If stdin is a terminal: prompt `[Y]es / [N]o / [R]ead more`. `Read more` shows the full body and re-prompts.
+- If stdin is redirected (script, agent harness, CI): refuse with exit code 1. The preview is still printed so the operator can see what would have gone out.
+- Pass `--yes` (or `-y`) to bypass the prompt — only when you've already reviewed and you're sure. The gate exists to stop accidental sends, so bypassing it is its own deliberate decision.
+
+`draft`, `delete`, and read commands are not gated — they don't dispatch a message to the network.
 
 ### Organize
 
